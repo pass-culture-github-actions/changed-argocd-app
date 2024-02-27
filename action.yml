@@ -13,6 +13,12 @@ inputs:
   tfstate:
     description: 'If set to true, it will locally remove empty tfstate files'
     default: true
+  mismatch:
+    description: 'If set to true, it will locally remove mismatches tfstate'
+    default: false
+  mismatch-exclude-pr-files:
+    description: 'If set to true, it will exclude filepaths mismatches from PRs edited files'
+    default: false
   push:
     description: 'If set to true, it will push changes to bucket'
     default: false

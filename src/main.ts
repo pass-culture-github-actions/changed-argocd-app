@@ -9,12 +9,12 @@ const TMP_DIR = '/tmp/tfstate';
 const RM_OPTIONS = { recursive: true }
 const RM_CALLBACK: any = (error: Error) => {
   if (error) {
-    console.log(error.message)
+    console.log(error.message);
   }
 }
 
 function findFileWithNameRecursively(directory: string, fileName: string): Array<string> {
-  const filePaths = []
+  const filePaths = [];
   try {
     const files = fs.readdirSync(directory)
     for (const file of files) {
@@ -24,10 +24,10 @@ function findFileWithNameRecursively(directory: string, fileName: string): Array
         if (fileStat.isDirectory()) {
           filePaths.push(findFileWithNameRecursively(filePath, fileName));
         } else if (file.endsWith(fileName)) {
-          filePaths.push(filePath)
+          filePaths.push(filePath);
         }
       } catch (syncError) {
-        throw syncError
+        throw syncError;
       }
     }
   } catch (error) {
@@ -46,16 +46,16 @@ async function run() {
   const { execa } = await import('execa');
 
   function getEmptyTfStateFilePaths(): string[] {
-    const tfStateFilePaths = findFileWithNameRecursively(TMP_DIR, 'default.tfstate')
-    const emptyTfStateFilePaths = tfStateFilePaths.filter(filterEmptyTfState)
-    console.log(`Total default.tfstate count: ${tfStateFilePaths.length}`)
+    const tfStateFilePaths = findFileWithNameRecursively(TMP_DIR, 'default.tfstate');
+    const emptyTfStateFilePaths = tfStateFilePaths.filter(filterEmptyTfState);
+    console.log(`Total default.tfstate count: ${tfStateFilePaths.length}`);
 
     if (emptyTfStateFilePaths.length > 0) {
-      console.log(`::group::default.tfstate (${emptyTfStateFilePaths.length})`)
-      console.log(emptyTfStateFilePaths.join('\n'))
-      console.log('::endgroup::')
+      console.log(`::group::default.tfstate (${emptyTfStateFilePaths.length})`);
+      console.log(emptyTfStateFilePaths.join('\n'));
+      console.log('::endgroup::');
     } else {
-      console.log('default.tfstate (0)')
+      console.log('default.tfstate (0)');
     }
 
     core.setOutput('empty-tfstate-filepaths', emptyTfStateFilePaths.join(' '));
@@ -63,55 +63,65 @@ async function run() {
     return emptyTfStateFilePaths
   }
 
-  function getMismatchFilePaths(terragruntDirectory: string, terragruntBucketDirectory: string): string[] {
+  function getMismatchFilePaths({
+    terragruntDirectory,
+    terragruntBucketDirectory,
+    mismatchExcludePrFiles
+  }: {
+    terragruntDirectory: string,
+    terragruntBucketDirectory: string,
+    mismatchExcludePrFiles: boolean
+  }): string[] {
     const tfStateFilePathsToCompare = findFileWithNameRecursively(TMP_DIR, 'default.tfstate')
-      .filter((tfStateFilepath) => tfStateFilepath.startsWith(`${TMP_DIR}/${terragruntBucketDirectory}`))
-    const terragruntHclFilePaths = findFileWithNameRecursively(`${process.cwd()}/${terragruntDirectory}`, 'terragrunt.hcl')
+      .filter((tfStateFilepath) => tfStateFilepath.startsWith(`${TMP_DIR}/${terragruntBucketDirectory}`));
+    const terragruntHclFilePaths = findFileWithNameRecursively(`${process.cwd()}/${terragruntDirectory}`, 'terragrunt.hcl');
     const mismatchFilePaths = tfStateFilePathsToCompare.filter((tfStatePath) => {
-      let exist = false
+      let exist = false;
       for (const terragruntHclFilePath of terragruntHclFilePaths) {
         const compare = `${terragruntDirectory}${tfStatePath.replace(`${TMP_DIR}/${terragruntBucketDirectory}`, '').replace('default.tfstate', 'terragrunt.hcl')}`
         if (terragruntHclFilePath.endsWith(compare)) {
-          exist = true
-          break
+          exist = true;
+          break;
         }
       }
-      return !exist
+      return !exist;
     })
 
     if (mismatchFilePaths.length > 0) {
-      console.log(`::group::mismatch (${mismatchFilePaths.length})`)
+      console.log(`::group::mismatch (${mismatchFilePaths.length})`);
       console.log(mismatchFilePaths.join('\n'));
       console.log('::endgroup::')
     } else {
-      console.log('mismatch (0)')
+      console.log('mismatch (0)');
     }
 
 
     core.setOutput('tfstate-mismatch-filepaths', mismatchFilePaths.join(' '));
     core.setOutput('tfstate-mismatch-filepaths-count', `${mismatchFilePaths.length}`);
-    return mismatchFilePaths
+    return mismatchFilePaths;
   }
 
   async function getTerragruntCacheFilePaths(): Promise<string[]> {
-    const { stdout } = await execa('find', [TMP_DIR, '-type', 'd', '-name', '.terragrunt-cache'])
+    const { stdout } = await execa('find', [TMP_DIR, '-type', 'd', '-name', '.terragrunt-cache']);
     const terragruntCacheFilePaths = stdout.replace(/\n/g, " ").split(' ').filter((path: string) => !!path.trim());
 
     if (terragruntCacheFilePaths.length > 0) {
-      console.log(`::group::.terragrunt-cache (${terragruntCacheFilePaths.length})`)
-      console.log(terragruntCacheFilePaths.join('\n'))
-      console.log('::endgroup::')
+      console.log(`::group::.terragrunt-cache (${terragruntCacheFilePaths.length})`);
+      console.log(terragruntCacheFilePaths.join('\n'));
+      console.log('::endgroup::');
     } else {
-      console.log('.terragrunt-cache (0)')
+      console.log('.terragrunt-cache (0)');
     }
 
     core.setOutput('terragrunt-cache-filepaths', terragruntCacheFilePaths.join(' '));
     core.setOutput('terragrunt-cache-filepaths-count', `${terragruntCacheFilePaths.length}`);
-    return terragruntCacheFilePaths
+    return terragruntCacheFilePaths;
   }
 
   const terragruntCache = core.getBooleanInput('terragrunt-cache');
   const tfstate = core.getBooleanInput('tfstate');
+  const mismatch = core.getBooleanInput('mismatch');
+  const mismatchExcludePrFiles = core.getBooleanInput('mismatch-exclude-pr-files');
   const push = core.getBooleanInput('push');
   const project: string = core.getInput('project');
   const bucket: string = core.getInput('bucket');
@@ -123,43 +133,46 @@ async function run() {
       terragruntCache: terragruntCache,
       tfstate: tfstate,
       terragruntDirectory: terragruntDirectory,
+      mismatch: mismatch,
+      mismatchExcludePrFiles: mismatchExcludePrFiles,
       push: push,
       project: project,
       bucket: bucket,
     }, null, 2)
-  )
+  );
 
-  let emptyTfStatFilePaths: string[] = []
-  let terragruntCacheFilePaths: string[] = []
+  let emptyTfStatFilePaths: string[] = [];
+  let terragruntCacheFilePaths: string[] = [];
+  let mismatchFilePaths: string[] = [];
 
   try {
     const { stdout } = await execa('gcloud', ['--version']);
   } catch (error) {
     if ((error as any).code as string === 'ENOENT') {
-      core.setFailed('You must have gcloud CLI installed.')
+      core.setFailed('You must have gcloud CLI installed.');
     } else if (error instanceof Error) {
       core.setFailed(error.message);
     }
-    return
+    return;
   }
 
   try {
-    await execa('mkdir', ['-p', TMP_DIR])
+    await execa('mkdir', ['-p', TMP_DIR]);
   } catch(error) {
     if (error instanceof Error) {
       core.setFailed(error.message);
     }
-    return
+    return;
   }
 
   try {
-    const { stdout } = await execa('gcloud', ['storage', 'rsync', '--recursive', '--project', project, `gs://${bucket}`, TMP_DIR])
-    console.log(`Pulling tfstate bucket gs://${bucket}...`)
+    const { stdout } = await execa('gcloud', ['storage', 'rsync', '--recursive', '--project', project, `gs://${bucket}`, TMP_DIR]);
+    console.log(`Pulling tfstate bucket gs://${bucket}...`);
   } catch (error) {
     if (error instanceof Error) {
       core.setFailed(error.message);
     }
-    return
+    return;
   }
 
   try {
@@ -168,7 +181,7 @@ async function run() {
     if (error instanceof Error) {
       core.setFailed(error.message);
     }
-    return
+    return;
   }
 
   try {
@@ -177,11 +190,11 @@ async function run() {
     if (error instanceof Error) {
       core.setFailed(error.message);
     }
-    return
+    return;
   }
 
   try {
-    getMismatchFilePaths(terragruntDirectory, terragruntBucketDirectory)
+    mismatchFilePaths = await getMismatchFilePaths({ terragruntDirectory, terragruntBucketDirectory, mismatchExcludePrFiles })
   } catch (error) {
     if (error instanceof Error) {
       core.setFailed(error.message);
@@ -191,16 +204,20 @@ async function run() {
 
   if (push) {
     try {
-      console.log(`Pushing tfstate bucket gs://${bucket}...`)
+      console.log(`Pushing tfstate bucket gs://${bucket}...`);
       if (tfstate) {
-        emptyTfStatFilePaths.forEach(fs.unlinkSync)
+        emptyTfStatFilePaths.forEach(fs.unlinkSync);
       }
       if (terragruntCache) {
         terragruntCacheFilePaths.forEach((folder: string) => {
           if (fs.existsSync(folder)) {
-            fs.rm(folder, RM_OPTIONS, RM_CALLBACK)
+            fs.rm(folder, RM_OPTIONS, RM_CALLBACK);
           }
-        })
+        });
+      }
+      if (mismatch) {
+        mismatchFilePaths.forEach(fs.unlinkSync);
+        // TODO: remove mismatch
       }
 
       await execa('gcloud', [
@@ -215,11 +232,15 @@ async function run() {
       ]);
 
       if (tfstate) {
-        getEmptyTfStateFilePaths() // refresh output count
+        getEmptyTfStateFilePaths(); // refresh output count
       }
       if (terragruntCache) {
-        await getTerragruntCacheFilePaths() // refresh output count
+        await getTerragruntCacheFilePaths(); // refresh output count
       }
+      if (mismatch) {
+        await getMismatchFilePaths({ terragruntDirectory, terragruntBucketDirectory, mismatchExcludePrFiles });
+      }
+
     } catch (error) {
       if (error instanceof Error) {
         core.setFailed(error.message);

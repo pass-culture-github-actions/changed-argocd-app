@@ -8,7 +8,8 @@ GitHub action to perform maintainance task on the tfstate GCP bucket.
 
 - Remove empty `default.tfstate` files.
 - Remove unecessary `.terragrunt-cache` directories.
-- Report mismatch between GCS tfstate bucket and IaC repository.
+- Remove mismatch between GCS tfstate bucket and IaC repository.
+  - Exclude files from open and draft pull requests.
 - Push removal of empty `default.tfstate` or `.terragrunt-cache` or both.
 
 ## Usage
@@ -47,6 +48,8 @@ jobs:
           push: false
           terragrunt-cache: true
           tfstate: true
+          mismtach: true
+          mismatch-exclude-pr-files: true
           terragrunt-directory: 'terragrunt'
           terragrunt-bucket-directory: 'infrastructure'
       - run: echo "emptyTfstateFilepaths=${{ steps.tfstate-bucket.outputs.empty-tfstate-filepaths }}"
@@ -65,6 +68,8 @@ jobs:
 | `project`                     | The project name that own the bucket | yes |
 | `terragrunt-cache`            | If set to true, it will locally remove empty .terragrunt-cache directory | no | `true` |
 | `tfstate`                     | If set to true, it will locally remove empty tfstate files | no | `true` |
+| `mismatch`                    | If set to true, it will locally remove mismatches tfstate | no | `false` |
+| `mismatch-exclude-pr-files`   | If set to true, it will exclude filepaths mismatches from PRs edited files | no | `false` |
 | `push`                        | If set to true, it will push changes to bucket | no | `false` |
 | `terragrunt-directory`        | Set the terragrunt directory from the checkout repository to start the filepath with to compare. Used when checkout-warning-mismatch: true' | no | |
 | `terragrunt-bucket-directory` | Set the terragrunt bucket directory to start the filepath with to compare. Used when checkout-warning-mismatch: true' | no | |
